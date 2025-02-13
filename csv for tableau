@@ -1,0 +1,111 @@
+#install required packages
+install.packages('tidyverse')
+library(tidyverse)
+install.packages('conflicted')
+library(conflicted)
+
+conflict_prefer("filter", "dplyr")
+conflict_prefer("lag", "dplyr")
+
+#start loading 12 months data
+jan_2021 <- read_csv("202101-divvy-tripdata.csv")
+feb_2021 <- read_csv("202102-divvy-tripdata.csv")
+mar_2021 <- read_csv("202103-divvy-tripdata.csv")
+apr_2021 <- read_csv("202104-divvy-tripdata.csv")
+may_2021 <- read_csv("202105-divvy-tripdata.csv")
+jun_2021 <- read_csv("202106-divvy-tripdata.csv")
+jul_2021 <- read_csv("202107-divvy-tripdata.csv")
+aug_2021 <- read_csv("202108-divvy-tripdata.csv")
+sep_2021 <- read_csv("202109-divvy-tripdata.csv")
+oct_2021 <- read_csv("202110-divvy-tripdata.csv")
+nov_2021 <- read_csv("202111-divvy-tripdata.csv")
+dec_2021 <- read_csv("202112-divvy-tripdata.csv")
+
+#combine all 12 months data into one
+trips_2021 <- rbind(jan_2021,feb_2021,mar_2021,apr_2021,may_2021,jun_2021,jul_2021,aug_2021,sep_2021,oct_2021,nov_2021,dec_2021)
+#removed monthly data to avoid cluttering
+remove(jan_2021,feb_2021,mar_2021,apr_2021,may_2021,jun_2021,jul_2021,aug_2021,sep_2021,oct_2021,nov_2021,dec_2021)
+
+#create new data frame
+trips <- trips_2021
+trips$ride_length <- difftime(trips_2021$ended_at, trips_2021$started_at, units = "mins")
+head(trips)
+
+trips$date <- as.Date(trips$started_at) #yyyy-mm-dd
+trips$day_of_week <- wday(trips_2021$started_at)
+trips$day_of_week <- format(as.Date(trips$date), "%A")
+trips$month <- format(as.Date(trips$date), "%m")
+trips$day <- format(as.Date(trips$date), "%d")
+trips$year <- format(as.Date(trips$date), "%Y")
+trips$time <- format(as.Date(trips$date), "%H:%M:%S")
+install.packages("hms")
+library(hms)
+trips$time <- as_hms(trips_2021$started_at) #create new column of time
+install.packages("lubridate")
+library(lubridate)
+trips$hour <- hour(trips$time)
+
+install.packages('data.table')
+library(data.table)
+install.packages("dplyr")  # Install dplyr if not installed
+library(dplyr)  # Load dplyr
+#season wise column
+trips <- trips %>% mutate(season=
+                            case_when(month=="03" ~ "Spring",
+                                      month=="04" ~ "Spring",
+                                      month=="05" ~ "Spring",
+                                      month=="06" ~ "Summer",
+                                      month=="07" ~ "Summer",
+                                      month=="08" ~ "Summer",
+                                      month=="09" ~ "Fall",
+                                      month=="10" ~ "Fall",
+                                      month=="11" ~ "Fall",
+                                      month=="12" ~ "Winter",
+                                      month=="01" ~ "Winter",
+                                      month=="02" ~ "Winter")
+)
+#time of the day
+trips <- trips %>% mutate(time_of_day=
+                            case_when(hour=="0" ~ "Night",
+                                      hour=="1" ~ "Night",
+                                      hour=="2" ~ "Night",
+                                      hour=="3" ~ "Night",
+                                      hour=="4" ~ "Night",
+                                      hour=="5" ~ "Morning",
+                                      hour=="6" ~ "Morning",
+                                      hour=="7" ~ "Morning",
+                                      hour=="8" ~ "Morning",
+                                      hour=="9" ~ "Morning",
+                                      hour=="10" ~ "Morning",
+                                      hour=="11" ~ "Morning",
+                                      hour=="12" ~ "Afternoon",
+                                      hour=="13" ~ "Afternoon",
+                                      hour=="14" ~ "Afternoon",
+                                      hour=="15" ~ "Afternoon",
+                                      hour=="16" ~ "Afternoon",
+                                      hour=="17" ~ "Afternoon",
+                                      hour=="18" ~ "Evening",
+                                      hour=="19" ~ "Evening",
+                                      hour=="20" ~ "Evening",
+                                      hour=="21" ~ "Evening",
+                                      hour=="22" ~ "Night",
+                                      hour=="23" ~ "Night")
+)
+
+
+trips <- na.omit(trips) #remove NA
+trips <- distinct(trips) #remove duplicates
+trips <- trips[!(trips$ride_length <= 0),] #remove columns whose ride length is <=0
+
+trips <- trips %>%
+  select(-c(ride_id,start_station_id,end_station_id,start_lat,start_lng,end_lat,end_lng)) #remove unwanted columns
+
+View(trips)
+
+trips_tableau <- trips
+
+trips_tableau <- trips_tableau %>%
+  select(-c(start_station_name, end_station_name, time, started_at, ended_at))
+
+library(data.table)
+fwrite(trips_tableau,"trips_tab.csv")
